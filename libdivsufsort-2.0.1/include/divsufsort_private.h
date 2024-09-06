@@ -197,7 +197,7 @@ sssort(const sauchar_t *Td, const saidx_t *PA,
        saidx_t depth, saidx_t n, saint_t lastsuffix);
 /* trsort.c */
 void
-trsort(saidx_t *ISA, saidx_t *SA, saidx_t n, saidx_t depth);
+trsort(saidx_t *ISA, saidx_t *SA, saidx_t n, saidx_t depth, saidx_t *buf, saidx_t bufsize);
 
 
 #ifdef __cplusplus

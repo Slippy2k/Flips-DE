@@ -156,9 +156,10 @@ note:
     }
 
     /* Construct the inverse suffix array of type B* suffixes using trsort. */
-    trsort(ISAb, SA, m, 1);
+    buf = ISAb + m, bufsize = n - (2 * m);
+    trsort(ISAb, SA, m, 1, buf, bufsize);
 
-    /* Set the sorted order of tyoe B* suffixes. */
+    /* Set the sorted order of type B* suffixes. */
     for(i = n - 1, j = m, c0 = T[n - 1]; 0 <= i;) {
       for(--i, c1 = c0; (0 <= i) && ((c0 = T[i]) >= c1); --i, c1 = c0) { }
       if(0 <= i) {
