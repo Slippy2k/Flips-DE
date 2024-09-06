@@ -271,26 +271,26 @@ public:
 
 const struct errorinfo ipserrors[]={
 		{ el_ok, NULL },//ips_ok
-		{ el_unlikelythis, "The patch was applied, but is most likely not intended for this ROM." },//ips_notthis
-		{ el_unlikelythis, "The patch was applied, but did nothing. You most likely already had the output file of this patch." },//ips_thisout
-		{ el_warning, "The patch was applied, but appears scrambled or malformed." },//ips_suspicious
-		{ el_broken, "The patch is broken and can't be used." },//ips_invalid
+		{ el_unlikelythis, "Der Patch wurde angewendet, ist aber hoechstwahrscheinlich nicht fuer dieses ROM gedacht." },//ips_notthis
+		{ el_unlikelythis, "Der Patch wurde angewendet, hat aber nichts bewirkt. Wahrscheinlich hast du bereits die Ausgabedatei gepatcht." },//ips_thisout
+		{ el_warning, "Der Patch wurde angewendet, aber er scheint verschluesselt oder fehlerhaft zu sein." },//ips_suspicious
+		{ el_broken, "Der Patch ist defekt und kann nicht verwendet werden." },//ips_invalid
 		
-		{ el_broken, "The IPS format does not support files larger than 16MB." },//ips_16MB
-		{ el_warning, "The files are identical! The patch will do nothing." },//ips_identical
+		{ el_broken, "Das IPS Format unterstuetzt keine Dateien, die groesser als 16 MB sind." },//ips_16MB
+		{ el_warning, "Die Dateien sind identisch! Der Patch wird nichts bewirken." },//ips_identical
 	};
 
 const struct errorinfo bpserrors[]={
 		{ el_ok, NULL },//bps_ok,
-		{ el_notthis, "That's the output file already." },//bps_to_output
-		{ el_notthis, "This patch is not intended for this ROM." },//bps_not_this
-		{ el_broken, "This patch is broken and can't be used." },//bps_broken
-		{ el_broken, "Couldn't read input patch." },//bps_io
+		{ el_notthis, "Das ist bereits die Ausgabedatei." },//bps_to_output
+		{ el_notthis, "Dieser Patch ist nicht fuer dieses ROM gedacht." },//bps_not_this
+		{ el_broken, "Dieser Patch ist defekt und kann nicht verwendet werden." },//bps_broken
+		{ el_broken, "Eingabe Patch konnte nicht gelesen werden." },//bps_io
 		
-		{ el_warning, "The files are identical! The patch will do nothing." },//bps_identical
-		{ el_broken, "These files are too big for this program to handle." },//bps_too_big
-		{ el_broken, "These files are too big for this program to handle." },//bps_out_of_mem (same message as above, it's accurate for both.)
-		{ el_broken, "Patch creation was canceled." },//bps_canceled
+		{ el_warning, "Die Dateien sind identisch! Der Patch wird nichts bewirken." },//bps_identical
+		{ el_broken, "Diese Dateien sind zu gross fuer dieses Programm." },//bps_too_big
+		{ el_broken, "Diese Dateien sind zu gross fuer dieses Programm." },//bps_out_of_mem (same message as above, it's accurate for both.)
+		{ el_broken, "Die Erstellung des Patches wurde abgebrochen." },//bps_canceled
 	};
 
 LPCWSTR GetManifestName(LPCWSTR romname)
@@ -466,7 +466,7 @@ LPCWSTR config::get(LPCWSTR name, LPCWSTR def)
 
 LPWSTR config::flatten()
 {
-	LPCWSTR header = TEXT("[Flips]\n#Changing this file may void your warranty. Do not report any bugs if you do.\n");
+	LPCWSTR header = TEXT("[Flips]\n#Wenn du diese Datei aenderst, kann deine Garantie erloeschen. Melde keine Fehler, wenn du dies machst.\n");
 	
 	size_t len = wcslen(header);
 	for (size_t i=0;i<this->numentries;i++)
@@ -793,12 +793,12 @@ struct errorinfo ApplyPatchMem2(file* patch, struct mem inrom, bool verifyinput,
 	struct mem outrom={NULL,0};
 	struct mem manifest={NULL,0};
 	
-	errinf=error(el_broken, "Unknown patch format.");
+	errinf=error(el_broken, "Unbekanntes Patch Format.");
 	if (patchtype==ty_bps)
 	{
 		errinf=bpserrors[bps_apply(patchmem, inrom, &outrom, &manifest, !verifyinput)];
 		if (errinf.level==el_notthis && !verifyinput && outrom.ptr)
-			errinf = error(el_warning, "This patch is not intended for this ROM (output created anyways)");
+			errinf = error(el_warning, "Dieser Patch ist nicht fuer dieses ROM gedacht (Ausgabe trotzdem erstellt)");
 		if (errinf.level==el_notthis)
 		{
 			bpsinfo inf = bps_get_info(patch, false);
@@ -825,7 +825,7 @@ struct errorinfo ApplyPatchMem2(file* patch, struct mem inrom, bool verifyinput,
 #else
 # define z "z"
 #endif
-				snprintf(errtext, 256, "This patch is not intended for this ROM. Expected file size %" z "u, got %" z "u.", inf.size_in, inrom.len);
+				snprintf(errtext, 256, "Dieser Patch ist nicht fuer dieses ROM gedacht. Erwartete Dateigroesse %" z "u, erhalten %" z "u.", inf.size_in, inrom.len);
 				errinf.description=errtext;
 			}
 			else
@@ -833,7 +833,7 @@ struct errorinfo ApplyPatchMem2(file* patch, struct mem inrom, bool verifyinput,
 				uint32_t crc = crc32(inrom.ptr, inrom.len);
 				if (inf.crc_in != crc)
 				{
-					snprintf(errtext, 256, "This patch is not intended for this ROM. Expected checksum %.8X, got %.8X.", inf.crc_in, crc);
+					snprintf(errtext, 256, "Dieser Patch ist nicht fuer dieses ROM gedacht. Erwartete Pruefsumme %.8X, erhalten %.8X.", inf.crc_in, crc);
 					errinf.description=errtext;
 				}
 			}
@@ -841,7 +841,7 @@ struct errorinfo ApplyPatchMem2(file* patch, struct mem inrom, bool verifyinput,
 	}
 	if (patchtype==ty_ips) errinf=ipserrors[ips_apply(patchmem, inrom, &outrom)];
 	if (patchtype==ty_ups) errinf=bpserrors[ups_apply(patchmem, inrom, &outrom)];
-	if (errinf.level==el_ok) errinf.description="The patch was applied successfully!";
+	if (errinf.level==el_ok) errinf.description="Der Patch wurde erfolgreich angewendet!";
 	
 	struct manifestinfo defmanifestinfo={true,false,NULL};
 	if (!manifestinfo) manifestinfo=&defmanifestinfo;
@@ -854,12 +854,12 @@ struct errorinfo ApplyPatchMem2(file* patch, struct mem inrom, bool verifyinput,
 			else manifestname=GetManifestName(outromname);
 			if (!WriteWholeFile(manifestname, manifest) && manifestinfo->required)
 			{
-				if (errinf.level==el_ok) errinf=error(el_warning, "The patch was applied, but the manifest could not be created.");
+				if (errinf.level==el_ok) errinf=error(el_warning, "Der Patch wurde angewendet, aber das Manifest konnte nicht erstellt werden.");
 			}
 		}
 		else if (manifestinfo->required && errinf.level==el_ok)
 		{
-			errinf=error(el_warning, "The patch was applied, but there was no manifest present.");
+			errinf=error(el_warning, "Der Patch wurde angewendet, aber es war kein Manifest vorhanden.");
 		}
 	}
 	
@@ -871,13 +871,13 @@ struct errorinfo ApplyPatchMem2(file* patch, struct mem inrom, bool verifyinput,
 		{
 			if (!WriteWholeFileWithHeader(outromname, inrom, outrom))
 			{
-				errinf=error(el_broken, "Couldn't write ROM");
+				errinf=error(el_broken, "Konnte kein ROM schreiben");
 			}
 		}
 	}
 	else if (errinf.level<el_notthis)
 	{
-		if (!WriteWholeFile(outromname, outrom)) errinf=error(el_broken, "Couldn't write ROM");
+		if (!WriteWholeFile(outromname, outrom)) errinf=error(el_broken, "Konnte kein ROM schreiben");
 	}
 	free(outrom.ptr);
 	free(patchmem.ptr);
@@ -889,7 +889,7 @@ struct errorinfo ApplyPatchMem2(file* patch, struct mem inrom, bool verifyinput,
 		{
 			if (errinf2.level==el_ok)
 			{
-				return error(el_warning, "The patch was applied, but it was created from a headered ROM, which may not work for everyone.");
+				return error(el_warning, "Der Patch wurde zwar angewandt, aber er wurde aus einer geheadeten ROM erstellt, die vielleicht nicht bei jedem funktioniert.");
 			}
 			else return errinf2;
 		}
@@ -912,7 +912,7 @@ struct errorinfo ApplyPatchMem(file* patch, LPCWSTR inromname, bool verifyinput,
 	if (!inrom)
 	{
 		if (update_rom_list) DeleteRomFromList(inromname);
-		return error(el_broken, "Couldn't read ROM");
+		return error(el_broken, "Konnte ROM nicht lesen");
 	}
 	struct errorinfo errinf = ApplyPatchMem2(patch, inrom->get(), verifyinput,
 	                                         shouldRemoveHeader(inromname, inrom->len()), outromname, manifestinfo);
@@ -927,7 +927,7 @@ struct errorinfo ApplyPatch(LPCWSTR patchname, LPCWSTR inromname, bool verifyinp
 	file* patch = file::create(patchname);
 	if (!patch)
 	{
-		return error(el_broken, "Couldn't read input patch");
+		return error(el_broken, "Eingabe Patch konnte nicht gelesen werden");
 	}
 	struct errorinfo errinf=ApplyPatchMem(patch, inromname, verifyinput, outromname, manifestinfo, update_rom_list);
 	delete patch;
@@ -945,7 +945,7 @@ bool bpsdeltaGetProgress(size_t done, size_t total)
 	if (promille==bpsdLastPromille) return false;
 	bpsdLastPromille=promille;
 	if (promille>=1000) return false;
-	strcpy(bpsdProgStr, "Please wait... ");
+	strcpy(bpsdProgStr, "Bitte warten... ");
 	bpsdProgStr[15]='0'+promille/100;
 	int digit1=((promille<100)?15:16);
 	bpsdProgStr[digit1+0]='0'+promille/10%10;
@@ -986,7 +986,7 @@ struct errorinfo CreatePatchToMem(LPCWSTR inromname, LPCWSTR outromname, enum pa
 			if (!romsmap[i])
 			{
 				if (i==1) delete romsmap[0];
-				return error(el_broken, "Couldn't read this ROM.");
+				return error(el_broken, "Ich konnte dieses ROM nicht lesen.");
 			}
 			if (shouldRemoveHeader(romname, romsmap[i]->len()) && (patchtype==ty_bps || patchtype==ty_bps_linear || patchtype==ty_bps_moremem))
 			{
@@ -1002,7 +1002,7 @@ struct errorinfo CreatePatchToMem(LPCWSTR inromname, LPCWSTR outromname, enum pa
 			if (!roms[i])
 			{
 				if (i==1) delete roms[0];
-				return error(el_broken, "Couldn't read this ROM.");
+				return error(el_broken, "Ich konnte dieses ROM nicht lesen.");
 			}
 			if (shouldRemoveHeader(romname, roms[i]->len()) && (patchtype==ty_bps || patchtype==ty_bps_linear || patchtype==ty_bps_moremem))
 			{
@@ -1022,11 +1022,11 @@ struct errorinfo CreatePatchToMem(LPCWSTR inromname, LPCWSTR outromname, enum pa
 		if (manifestinfo->name) manifestname=manifestinfo->name;
 		else manifestname=GetManifestName(outromname);
 		manifest=ReadWholeFile(manifestname);
-		if (!manifest.ptr) manifesterr=error(el_warning, "The patch was created, but the manifest could not be read.");
+		if (!manifest.ptr) manifesterr=error(el_warning, "Der Patch wurde erstellt, aber das Manifest konnte nicht gelesen werden.");
 	}
-	else manifesterr=error(el_warning, "The patch was created, but this patch format does not support manifests.");
+	else manifesterr=error(el_warning, "Der Patch wurde erstellt, aber dieses Patch Format unterstuetzt keine Manifeste.");
 	
-	struct errorinfo errinf={ el_broken, "Unknown patch format." };
+	struct errorinfo errinf={ el_broken, "Unbekanntes Patch Format." };
 	if (patchtype==ty_ips)
 	{
 		errinf=ipserrors[ips_create(romsmap[0]->get(), romsmap[1]->get(), patchmem)];
@@ -1051,14 +1051,14 @@ struct errorinfo CreatePatchToMem(LPCWSTR inromname, LPCWSTR outromname, enum pa
 		errinf=bpserrors[bps_create_linear(romsmap[0]->get(), romsmap[1]->get(), manifest, patchmem)];
 	}
 	FreeFileMemory(manifest);
-	if (errinf.level==el_ok) errinf.description="The patch was created successfully!";
+	if (errinf.level==el_ok) errinf.description="Der Patch wurde erfolgreich erstellt!";
 	
 	if (manifestinfo->required && errinf.level==el_ok && manifesterr.level!=el_ok) errinf=manifesterr;
 	
 	if (errinf.level==el_ok && lens[0] > lens[1])
 	{
-		errinf=error(el_warning, "The patch was created, but the input ROM is larger than the "
-		                         "output ROM. Double check whether you've gotten them backwards.");
+		errinf=error(el_warning, "Der Patch wurde erstellt, aber das Eingang ROM ist groesser als das "
+		                         "Ausgabe ROM. Ueberpruefe noch einmal, ob du sie verkehrt herum gemacht hast.");
 	}
 	
 	if (usemmap)
@@ -1083,7 +1083,7 @@ struct errorinfo CreatePatch(LPCWSTR inromname, LPCWSTR outromname, enum patchty
 	
 	if (errinf.level<el_notthis)
 	{
-		if (!WriteWholeFile(patchname, patch)) errinf=error(el_broken, "Couldn't write patch.");
+		if (!WriteWholeFile(patchname, patch)) errinf=error(el_broken, "Ich konnte den Patch nicht schreiben.");
 	}
 	if (patch.ptr) free(patch.ptr);
 	return errinf;
@@ -1096,7 +1096,7 @@ errorlevel patchinfo(LPCWSTR patchname, struct manifestinfo * manifestinfo, int 
 	file* patch = file::create(patchname);
 	if (!patch)
 	{
-		puts("Couldn't read file");
+		puts("Datei konnte nicht gelesen werden");
 		return el_broken;
 	}
 	
@@ -1134,11 +1134,11 @@ errorlevel patchinfo(LPCWSTR patchname, struct manifestinfo * manifestinfo, int 
 		
 		LPCWSTR inromname = FindRomForPatch(patch, NULL);
 		//'z' macro defined above
-		printf("Input ROM: %" z "u bytes, CRC32 %.8X", info.size_in, info.crc_in);
+		printf("Eingang ROM: %" z "u bytes, CRC32 %.8X", info.size_in, info.crc_in);
 		if (inromname) wprintf(TEXT(", %s"), inromname);
 		puts("");
 		
-		printf("Output ROM: %" z "u bytes, CRC32 %.8X\n", info.size_out, info.crc_out);
+		printf("Ausgabe ROM: %" z "u bytes, CRC32 %.8X\n", info.size_out, info.crc_out);
 		//floating point may lose a little precision, but it's easier than dodging overflows, and this
 		//is the output of inaccurate heuristics anyways, losing a little more makes no difference.
 		//Windows MulDiv could also work, but it's kinda nonportable.
@@ -1164,7 +1164,7 @@ errorlevel patchinfo(LPCWSTR patchname, struct manifestinfo * manifestinfo, int 
 		
 		if (verbosity >= 1)
 		{
-			puts("Disassembly:");
+			puts("Dekompiliert:");
 			struct mem patchmem = patch->read();
 			bps_disassemble(patchmem, stdout);
 			free(patchmem.ptr);
@@ -1173,7 +1173,7 @@ errorlevel patchinfo(LPCWSTR patchname, struct manifestinfo * manifestinfo, int 
 		free(meta.ptr);
 		return el_ok;
 	}
-	puts("No information available for this patch type");
+	puts("Fuer diesen Patch Typ sind keine Informationen verfuegbar");
 	return el_broken;
 }
 
@@ -1185,44 +1185,47 @@ void usage()
 	fputs(
 	// 12345678901234567890123456789012345678901234567890123456789012345678901234567890
 	   flipsversion "\n"
-	  "usage:\n"
-	  "   "
+	  " \n"
+	  "Verwendung:\n"
+	  " \n"
 #ifndef FLIPS_CLI
-	     "flips\n"
-	  "or flips patch.bps\n"
-	  "or "
+	     "  flips\n"
+	  "oder flips patch.bps\n"
+	  "oder "
 #endif
-	     "flips [--apply] [--exact] patch.bps rom.smc [outrom.smc]\n"
-	  "or flips [--create] [--exact] [--bps | etc] clean.smc hack.smc [patch.bps]\n"
+	     "  flips [--apply] [--exact] patch.bps rom.smc [outrom.smc]\n"
+	  "oder flips [--create] [--exact] [--bps | etc] clean.smc hack.smc [patch.bps]\n"
 	  "\n"
 	// 12345678901234567890123456789012345678901234567890123456789012345678901234567890
-	  "options:\n"
-	  "-a --apply: apply IPS, BPS or UPS patch (default if given two arguments)\n"
-	  "  if output filename is not given, Flips defaults to patch.smc beside the patch\n"
-	  "-c --create: create IPS or BPS patch (default if given three arguments)\n"
-	  "-I --info: BPS files contain information about input and output roms, print it\n"
-	  "  with --verbose, disassemble the entire patch\n"
-	  //"  also estimates how much of the source file is retained\n"
-	  //"  anything under 400 is fine, anything over 600 should be treated with suspicion\n"
+	  "Optionen:\n"
+	  "-a --apply: IPS-, BPS- oder UPS Patch anwenden (Standard, wenn zwei Argumente angegeben werden)\n"
+	  "  wenn der Ausgabedateiname nicht angegeben wird, gibt Flips die Datei patch.smc neben dem Patch vor\n"
+	  "-c --create: IPS- oder BPS-Patch erstellen (Standardwert bei Angabe von drei Argumenten)\n"
+	  "-I --info:   BPS Dateien enthalten Informationen ueber Eingang- und Ausgang Roms,\n"
+	  "             mit --verbose, bekommst du den gesamten Patch Dekompiliert \n"
+	  //" schaetzt auch, wie viel von der Quelldatei erhalten bleibt\n"
+	  //" alles unter 400 ist in Ordnung, alles ueber 600 sollte mit Misstrauen behandelt werden\n"
 	  //(TODO: --info --verbose)
 	  "-i --ips, -b -B --bps --bps-delta, --bps-delta-moremem, --bps-linear:\n"
-	  "  create this patch format instead of guessing based on file extension\n"
-	  "  ignored when applying\n"
-	  " bps creation styles:\n"
-	  "  delta is the recommended and default one; it's a good balance between creation\n"
-	  "    performance and patch size\n"
-	  "  delta-moremem is usually slightly (~3%) faster than delta, but uses about\n"
-	  "    twice as much memory; it gives identical patches to delta\n"
-	  "  linear is the fastest, but tends to give pretty big patches\n"
-	  "  all BPS patchers can apply all patch styles, the only difference is file size\n"
-	  "    and creation performance\n"
-	  "--exact: do not remove SMC headers when applying or creating a BPS patch\n"
-	  "    not recommended, may affect patcher compatibility\n"
-	  "--ignore-checksum: accept checksum mismatches (BPS only)\n"
-	  "-m or --manifest: emit or insert a manifest file as romname.xml (BPS only)\n"
-	  "-mfilename or --manifest=filename: emit or insert a manifest file exactly here\n"
-	  "-h -? --help: show this information\n"
-	  "-v --version: show application version\n"
+	  "  dieses Patch Format erstellen, anstatt anhand der Dateierweiterung zu raten wird bei der Anwendung ignoriert\n"
+	  " \n"
+	  " bps erstellungs Stile:\n"
+	  " --bps-delta: ist die empfohlene und standardmaessige Variante; sie bietet ein gutes Gleichgewicht zwischen Erstellungs\n"
+	  "              Leistung und Patch Groesse\n"
+	  " --bps-delta-moremem: ist in der Regel etwas (~3%) schneller als delta, benoetigt aber etwa\n"
+	  "                      doppelt so viel Speicherplatz; es ergibt identische Patches wie delta\n"
+	  " --bps-linear: ist am schnellsten, es fuehrt aber dazu ziemlich grossen Patches\n"
+	  " \n"
+	  " Alle BPS Patcher koennen alle Patchstile anwenden, der einzige Unterschied ist die Dateigroesse\n"
+	  " und die Erstellungsleistung\n"
+	  " \n"
+	  " --exact: SMC Header nicht entfernen, wenn ein BPS Patch angewendet oder erstellt wird\n"
+	  "          dies ist nicht empfohlen, es kann die Kompatibilitaet des Patches beeintraechtigen\n"
+	  " --ignore-checksum: akzeptiere nicht uebereinstimmende Pruefsummen (nur BPS)\n"
+	  " -m oder --manifest: eine Manifestdatei als romname.xml ausgeben oder einfuegen (nur BPS)\n"
+	  " -mfilename oder --manifest=filename: eine Manifestdatei genau hier ausgeben oder einfuegen\n"
+	  " -h -? --help: diese Informationen anzeigen\n"
+	  " -v --version: Anwendungsversion anzeigen\n"
 	  "\n"
 	// 12345678901234567890123456789012345678901234567890123456789012345678901234567890
 	, stdout);
@@ -1385,8 +1388,8 @@ int flipsmain(int argc, WCHAR * argv[])
 				outname = outname_buf;
 				if (wcscmp(arg[1], outname) != 0 && file::exists(outname))
 				{
-					wprintf(TEXT("You have requested creation of file %s, but that file already exists.\n"
-					             "If you want to overwrite it, supply that filename explicitly; if not, provide another filename.\n"),
+					wprintf(TEXT("Du hast die Erstellung der Datei %s angefordert, aber diese Datei existiert bereits.\n"
+					             "Wenn du sie ueberschreiben willst, gib diesen Dateinamen explizit an; wenn nicht, gib einen anderen Dateinamen an.\n"),
 					             outname);
 					return 1;
 				}
@@ -1404,7 +1407,7 @@ int flipsmain(int argc, WCHAR * argv[])
 			{
 				if (patchtype==ty_null)
 				{
-					puts("Error: Unknown patch type.");
+					puts("Fehler: Unbekannter Patch Typ.");
 					return error_to_exit(el_broken);
 				}
 				LPWSTR arg2=(WCHAR*)malloc(sizeof(WCHAR)*(wcslen(arg[1])+4+1));
@@ -1420,14 +1423,14 @@ int flipsmain(int argc, WCHAR * argv[])
 				LPCWSTR patchext=GetExtension(arg[2]);
 				if (!*patchext)
 				{
-					puts("Error: Unknown patch type.");
+					puts("Fehler: Unbekannter Patch Typ.");
 					return el_broken;
 				}
 				else if (!wcsicmp(patchext, TEXT(".ips"))) patchtype=ty_ips;
 				else if (!wcsicmp(patchext, TEXT(".bps"))) patchtype=ty_bps;
 				else
 				{
-					wprintf(TEXT("Error: Unknown patch type (%s)\n"), patchext);
+					wprintf(TEXT("Fehler: Unbekannter Patch Typ (%s)\n"), patchext);
 					return error_to_exit(el_broken);
 				}
 			}

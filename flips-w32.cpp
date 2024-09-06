@@ -90,6 +90,7 @@ struct {
 	unsigned char lastRomType;
 	bool openInEmulatorOnAssoc;
 	bool enableAutoRomSelector;
+	bool skipChecksum;
 	enum patchtype lastPatchType;
 	int windowleft;
 	int windowtop;
@@ -181,7 +182,7 @@ bool SelectRom(LPWSTR filename, LPCWSTR title, bool output)
 	ZeroMemory(&ofn, sizeof(ofn));
 	ofn.lStructSize=sizeof(ofn);
 	ofn.hwndOwner=hwndMain;
-	ofn.lpstrFilter=TEXT("Most Common ROM Files\0*.smc;*.sfc;*.nes;*.gb;*.gbc;*.gba;*.nds;*.vb;*.sms;*.smd;*.md;*.ngp;*.n64;*.z64\0All Files (*.*)\0*.*\0");
+	ofn.lpstrFilter=TEXT("Die häufigsten ROM Dateien\0*.smc;*.sfc;*.nes;*.gb;*.gbc;*.gba;*.nds;*.vb;*.sms;*.smd;*.md;*.ngp;*.n64;*.z64\0Alle Dateien (*.*)\0*.*\0");
 	ofn.lpstrFile=filename;
 	ofn.nMaxFile=MAX_PATH;
 	ofn.nFilterIndex=state.lastRomType;
@@ -225,10 +226,10 @@ int a_ApplyPatch(LPCWSTR clipatchname)
 		ZeroMemory(&ofn, sizeof(ofn));
 		ofn.lStructSize=sizeof(ofn);
 		ofn.hwndOwner=hwndMain;
-		ofn.lpstrFilter=TEXT("All supported patches (*.ips, *.bps)\0*.ips;*.bps;*.ups\0All files (*.*)\0*.*\0");
+		ofn.lpstrFilter=TEXT("Alle unterstützten Patches (*.ips, *.bps, *.ups)\0*.ips;*.bps;*.ups\0Alle Dateien (*.*)\0*.*\0");
 		ofn.lpstrFile=patchnames;
 		ofn.nMaxFile=65535;
-		ofn.lpstrTitle=TEXT("Select Patches to Use");
+		ofn.lpstrTitle=TEXT("Zu verwendende Patches auswählen");
 		ofn.Flags=OFN_HIDEREADONLY|OFN_FILEMUSTEXIST|OFN_PATHMUSTEXIST|OFN_ALLOWMULTISELECT|OFN_EXPLORER;
 		ofn.lpstrDefExt=patchextensions[state.lastPatchType];
 		if (!GetOpenFileName(&ofn)) return 0;
@@ -250,7 +251,7 @@ int a_ApplyPatch(LPCWSTR clipatchname)
 		{
 			inromname=inromname_buf;
 			inromname_buf[0]='\0';
-			if (!SelectRom(inromname_buf, TEXT("Select File to Patch"), false)) goto cancel;
+			if (!SelectRom(inromname_buf, TEXT("Datei zum Patchen auswählen"), false)) goto cancel;
 		}
 		WCHAR outromname[MAX_PATH];
 		wcscpy(outromname, inromname);
@@ -263,8 +264,8 @@ int a_ApplyPatch(LPCWSTR clipatchname)
 			LPWSTR inromext=GetExtension(inromname);
 			if (*inromext && *outromext) wcscpy(outromext, inromext);
 		}
-		if (!SelectRom(outromname, TEXT("Select Output File"), true)) goto cancel;
-		struct errorinfo errinf=ApplyPatchMem(patch, inromname, true, outromname, NULL, state.enableAutoRomSelector);
+		if (!SelectRom(outromname, TEXT("Ausgabe datei auswählen"), true)) goto cancel;
+		struct errorinfo errinf=ApplyPatchMem(patch, inromname, !state.skipChecksum, outromname, NULL, state.enableAutoRomSelector);
 		delete patch;
 		MessageBoxA(hwndMain, errinf.description, flipsversion, mboxtype[errinf.level]);
 		return errinf.level;
@@ -287,14 +288,14 @@ int a_ApplyPatch(LPCWSTR clipatchname)
 			bool anySuccess=false;
 			enum { e_none, e_notice, e_warning, e_invalid, e_io_rom_write, e_io_rom_read, e_no_auto, e_io_read_patch } worsterror=e_none;
 			LPCSTR messages[8]={
-					"The patches were applied successfully!",//e_none
-					"The patches were applied successfully!",//e_notice (ignore)
-					"The patches were applied, but one or more may be mangled or improperly created...",//e_warning
-					"Some patches were applied, but not all of the given patches are valid...",//e_invalid
-					"Some patches were applied, but not all of the desired ROMs could be created...",//e_rom_io_write
-					"Some patches were applied, but not all of the input ROMs could be read...",//e_io_rom_read
-					"Some patches were applied, but not all of the required input ROMs could be located...",//e_no_auto
-					"Some patches were applied, but not all of the given patches could be read...",//e_io_read_patch
+					"Die Patches wurden erfolgreich angewendet!",//e_none
+					"Die Patches wurden erfolgreich angewendet!",//e_notice (ignore)
+					"Die Patches wurden zwar angewendet, aber einer oder mehrere sind möglicherweise beschädigt oder wurden nicht richtig erstellt...",//e_warning
+					"Einige Patches wurden angewandt, aber nicht alle der angegebenen Patches sind gültig...",//e_invalid
+					"Einige Patches wurden angewendet, aber es konnten nicht alle gewünschten ROMs erstellt werden...",//e_rom_io_write
+					"Einige Patches wurden angewendet, aber nicht alle Eingange ROMs konnten gelesen werden...",//e_io_rom_read
+					"Einige Patches wurden angewendet, aber es konnten nicht alle benötigten Eingang ROMs gefunden werden...",//e_no_auto
+					"Einige Patches wurden angewendet, aber es konnten nicht alle Patches gelesen werden...",//e_io_read_patch
 				};
 			
 			wcscpy(thisFileNameWithPath, patchnames);
@@ -334,7 +335,7 @@ int a_ApplyPatch(LPCWSTR clipatchname)
 				if (foundRom!=romname) canUseFoundRom=false;
 				
 				wcscpy(GetExtension(thisFileName), GetExtension(romname));
-				struct errorinfo errinf=ApplyPatchMem(patch, romname, true, thisFileNameWithPath, NULL, true);
+				struct errorinfo errinf=ApplyPatchMem(patch, romname, !state.skipChecksum, thisFileNameWithPath, NULL, true);
 				
 				if (errinf.level==el_broken) worsterror=max(worsterror, e_invalid);
 				if (errinf.level==el_notthis) worsterror=max(worsterror, e_no_auto);
@@ -360,7 +361,7 @@ int a_ApplyPatch(LPCWSTR clipatchname)
 		}
 		WCHAR inromname[MAX_PATH];
 		inromname[0]='\0';
-		if (!SelectRom(inromname, TEXT("Select Base File"), false)) return 0;
+		if (!SelectRom(inromname, TEXT("Basis datei auswählen"), false)) return 0;
 		WCHAR thisFileNameWithPath[MAX_PATH];
 		wcscpy(thisFileNameWithPath, patchnames);
 		LPWSTR thisFileName=wcschr(thisFileNameWithPath, '\0');
@@ -382,20 +383,20 @@ int a_ApplyPatch(LPCWSTR clipatchname)
 					NULL,//e_none
 					NULL,//e_notice
 					NULL,//e_warning
-					"None of these are valid patches for this ROM!",//e_invalid_this
-					"None of these are valid patches!",//e_invalid
-					"Couldn't write any ROMs. Are you on a read-only medium?",//e_io_write
-					"Couldn't read any patches. What exactly are you doing?",//e_io_read
-					"Couldn't read the input ROM. What exactly are you doing?",//e_io_read_rom
+					"Keiner dieser Patches ist für dieses ROM gültig!",//e_invalid_this
+					"Keiner dieser Patches ist gültig!",//e_invalid
+					"Es konnten keine ROMs geschrieben werden. Bist du auf einem Nur Lese Medium?",//e_io_write
+					"Ich konnte keine Patches lesen. Was genau versuchst du da?",//e_io_read
+					"Ich konnte das Eingabe ROM nicht lesen. Was genau versuchst du da?",//e_io_read_rom
 				},{
 					//at least one error-free
-					"The patches were applied successfully!",//e_none
-					"The patches were applied successfully!",//e_notice
-					"The patches were applied, but one or more may be mangled or improperly created...",//e_warning
-					"Some patches were applied, but not all of the given patches are valid for this ROM...",//e_invalid_this
-					"Some patches were applied, but not all of the given patches are valid...",//e_invalid
-					"Some patches were applied, but not all of the desired ROMs could be created...",//e_io_write
-					"Some patches were applied, but not all of the given patches could be read...",//e_io_read
+					"Die Patches wurden erfolgreich angewendet!",//e_none
+					"Die Patches wurden erfolgreich angewendet!",//e_notice
+					"Die Patches wurden zwar angewendet, aber einer oder mehrere sind möglicherweise beschädigt oder wurden nicht richtig erstellt...",//e_warning
+					"Einige Patches wurden angewendet, aber nicht alle der angegebenen Patches sind für dieses ROM gültig...",//e_invalid_this
+					"Einige Patches wurden angewandt, aber nicht alle der angegebenen Patches sind gültig...",//e_invalid
+					"Einige Patches wurden angewendet, aber es konnten nicht alle gewünschten ROMs erstellt werden...",//e_io_write
+					"Einige Patches wurden angewendet, aber es konnten nicht alle Patches gelesen werden...",//e_io_read
 					NULL,//e_io_read_rom
 				},
 			};
@@ -410,7 +411,7 @@ int a_ApplyPatch(LPCWSTR clipatchname)
 				{
 					LPWSTR patchExtension=GetExtension(thisFileName);
 					wcscpy(patchExtension, romExtension);
-					struct errorinfo errinf=ApplyPatchMem2(patch, inrom, removeheaders, true, thisFileNameWithPath, NULL);
+					struct errorinfo errinf=ApplyPatchMem2(patch, inrom, removeheaders, !state.skipChecksum, thisFileNameWithPath, NULL);
 					
 					if (errinf.level==el_broken) worsterror=max(worsterror, e_invalid);
 					if (errinf.level==el_notthis) worsterror=max(worsterror, e_invalid_this);
@@ -442,12 +443,12 @@ void a_CreatePatch()
 	
 	romnames[0][0]='\0';
 	romnames[1][0]='\0';
-	if (!SelectRom(romnames[0], TEXT("Select ORIGINAL UNMODIFIED File to Use"), false)) return;
-	if (!SelectRom(romnames[1], TEXT("Select NEW MODIFIED File to Use"), false)) return;
+	if (!SelectRom(romnames[0], TEXT("ORIGINAL auswählen (UNMODIFIZIERT) zu verwendende Datei"), false)) return;
+	if (!SelectRom(romnames[1], TEXT("NEU auswählen (MODIFIZIERT) zu verwendende Datei"), false)) return;
 	
 	if (!wcsicmp(romnames[0], romnames[1]))
 	{
-		MessageBoxA(hwndMain, "That's the same file! You should really use two different files.", flipsversion, mboxtype[el_broken]);
+		MessageBoxA(hwndMain, "Das ist die gleiche Datei! Du solltest wirklich zwei unterschiedliche Dateien verwenden.", flipsversion, mboxtype[el_broken]);
 		return;
 	}
 	
@@ -460,13 +461,13 @@ void a_CreatePatch()
 	ofn.lStructSize=sizeof(ofn);
 	ofn.hwndOwner=hwndMain;
 	ofn.lpstrFilter =
-		TEXT("BPS Patch File (*.bps)\0*.bps\0")
+		TEXT("BPS Patch Datei (*.bps)\0*.bps\0")
 		//TEXT("BPS Patch File (Favor Creation Speed) (*.bps)\0*.bps\0")
-		TEXT("IPS Patch File (*.ips)\0*.ips\0");
+		TEXT("IPS Patch Datei (*.ips)\0*.ips\0");
 	ofn.lpstrFile=patchname;
 	ofn.nMaxFile=MAX_PATH;
 	ofn.nFilterIndex=state.lastPatchType;
-	ofn.lpstrTitle=TEXT("Select File to Save As");
+	ofn.lpstrTitle=TEXT("Wähle eine Datei zum Speichern unter");
 	ofn.Flags=OFN_HIDEREADONLY|OFN_FILEMUSTEXIST|OFN_PATHMUSTEXIST|OFN_OVERWRITEPROMPT;
 	ofn.lpstrDefExt=patchextensions[state.lastPatchType];
 	if (!GetSaveFileName(&ofn))
@@ -489,10 +490,10 @@ bool a_SetEmulator()
 	ZeroMemory(&ofn, sizeof(ofn));
 	ofn.lStructSize=sizeof(ofn);
 	ofn.hwndOwner=hwndMain;
-	ofn.lpstrFilter=TEXT("Emulator Files (*.exe)\0*.exe\0All files (*.*)\0*.*\0");
+	ofn.lpstrFilter=TEXT("Emulator Dateien (*.exe)\0*.exe\0Alle Dateien (*.*)\0*.*\0");
 	ofn.lpstrFile=newemupath;
 	ofn.nMaxFile=MAX_PATH;
-	ofn.lpstrTitle=TEXT("Select Emulator to Use");
+	ofn.lpstrTitle=TEXT("Emulator auswählen");
 	ofn.Flags=OFN_HIDEREADONLY|OFN_FILEMUSTEXIST|OFN_PATHMUSTEXIST;
 	ofn.lpstrDefExt=TEXT("exe");
 	if (!GetOpenFileName(&ofn)) return false;
@@ -517,10 +518,10 @@ int a_ApplyRun(LPCWSTR clipatchname)
 		ZeroMemory(&ofn, sizeof(ofn));
 		ofn.lStructSize=sizeof(ofn);
 		ofn.hwndOwner=hwndMain;
-		ofn.lpstrFilter=TEXT("All supported patches (*.bps, *.ips)\0*.bps;*.ips;*.ups\0All files (*.*)\0*.*\0");
+		ofn.lpstrFilter=TEXT("Alle unterstützten Patches (*.bps, *.ips, *.ups)\0*.bps;*.ips;*.ups\0Alle Dateien (*.*)\0*.*\0");
 		ofn.lpstrFile=patchpath;
 		ofn.nMaxFile=MAX_PATH;
-		ofn.lpstrTitle=TEXT("Select Patch to Use");
+		ofn.lpstrTitle=TEXT("Patch auswählen");
 		ofn.Flags=OFN_HIDEREADONLY|OFN_FILEMUSTEXIST|OFN_PATHMUSTEXIST;
 		ofn.lpstrDefExt=TEXT("bps");
 		if (!GetOpenFileName(&ofn)) return 0;
@@ -530,7 +531,7 @@ int a_ApplyRun(LPCWSTR clipatchname)
 	file* patch = file::create(patchpath);
 	if (!patch)
 	{
-		errinf=error(el_broken, "Couldn't read input patch. What exactly are you doing?");
+		errinf=error(el_broken, "Eingabe Patch konnte nicht gelesen werden. Was genau machst du?");
 		goto error;
 	}
 	
@@ -541,7 +542,7 @@ int a_ApplyRun(LPCWSTR clipatchname)
 	if (!romname)
 	{
 		romname_base[0]='\0';
-		if (!SelectRom(romname_base, TEXT("Select Base File"), false))
+		if (!SelectRom(romname_base, TEXT("Basis datei auswählen"), false))
 		{
 			delete patch;
 			return 0;
@@ -566,7 +567,7 @@ int a_ApplyRun(LPCWSTR clipatchname)
 	WCHAR outfilename[MAX_PATH];
 	GetFullPathName(outfilename_rel, MAX_PATH, outfilename, NULL);
 	
-	errinf=ApplyPatchMem(patch, romname, true, outfilename, NULL, state.enableAutoRomSelector);
+	errinf=ApplyPatchMem(patch, romname, !state.skipChecksum, outfilename, NULL, state.enableAutoRomSelector);
 error:
 	
 	if (errinf.level!=el_ok) MessageBoxA(hwndMain, errinf.description, flipsversion, mboxtype[errinf.level]);
@@ -585,7 +586,7 @@ error:
 	PROCESS_INFORMATION processinformation;
 	if (!CreateProcess(NULL, cmdline, NULL, NULL, FALSE, 0, NULL, patchpath, &startupinfo, &processinformation))
 	{
-		MessageBoxA(hwndMain, "Couldn't open emulator.", flipsversion, mboxtype[el_broken]);
+		MessageBoxA(hwndMain, "Der Emulator konnte nicht geöffnet werden.", flipsversion, mboxtype[el_broken]);
 		//DeleteFile(tempfilename);
 		return el_broken;
 	}
@@ -616,7 +617,7 @@ void a_ShowSettings()
 	hwndSettings=CreateWindowA(
 		"floatingmunchers", flipsversion,
 		WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_BORDER|WS_MINIMIZEBOX,
-		CW_USEDEFAULT, CW_USEDEFAULT, 3+6+202+6+3, 21 + 6+23+6+23+3+13+1+17+4+17+6 + 3, NULL, NULL, GetModuleHandle(NULL), NULL);
+		CW_USEDEFAULT, CW_USEDEFAULT, 3+6+342+6+3, 21 + 6+23+6+33+3+13+1+17+4+17+6 + 3+17+6 + 3, NULL, NULL, GetModuleHandle(NULL), NULL);
 	
 	HFONT hfont=(HFONT)GetStockObject(DEFAULT_GUI_FONT);
 	HWND item;
@@ -654,24 +655,28 @@ void a_ShowSettings()
 	widget(WC_BUTTONA, BS_AUTOCHECKBOX, text, w, h, action)
 	
 	line(23);
-	firstbutton("Select emulator", 202/*94*/, 23, 101);
+	firstbutton("Emulator auswählen", 332/*94*/, 23, 101);
 	endline(6);
 	
 	line(23);
-	button("Assign file types", 98, 23, 102); assocButton=item;
-	labelL("(can not be undone)", 98, 13, 0); assocText=item;
+	button("Dateitypen zuweisen", 128, 23, 102); assocButton=item;
+	labelL("(kann nicht rückgängig gemacht werden)", 238, 13, 0); assocText=item;
 	endline(3);
 	
 	line(13);
-	labelC("When opening through associations:", 175, 13, 0);
+	labelC("Beim Öffnen durch Assoziationen:", 175, 13, 0);
 	endline(1);
 	line(17);
-	radio("Create ROM", 79, 17, 103); Button_SetCheck(item, (state.openInEmulatorOnAssoc==false));
-	radio("Run in emulator", 95, 17, 104); Button_SetCheck(item, (state.openInEmulatorOnAssoc==true));
+	radio("ROM erstellen", 83, 17, 103); Button_SetCheck(item, (state.openInEmulatorOnAssoc==false));
+	radio("Im Emulator ausführen", 125, 17, 104); Button_SetCheck(item, (state.openInEmulatorOnAssoc==true));
 	endline(4);
 	
 	line(17);
-	check("Enable automatic ROM selector", 202, 17, 105); Button_SetCheck(item, (state.enableAutoRomSelector));
+	check("Automatischen ROM Selektor einschalten", 213, 17, 105); Button_SetCheck(item, (state.enableAutoRomSelector));
+	endline(3);
+	
+	line(17);
+	check("Prüfsumme beim Patchen ignorieren", 202, 17, 106); Button_SetCheck(item, (state.skipChecksum));
 	endline(3);
 	
 	ShowWindow(hwndSettings, SW_SHOW);
@@ -782,6 +787,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			if (wParam==103) state.openInEmulatorOnAssoc=false;
 			if (wParam==104) state.openInEmulatorOnAssoc=true;
 			if (wParam==105) state.enableAutoRomSelector^=1;
+			if (wParam==106) state.skipChecksum^=1;
 		}
 		break;
 	case WM_CLOSE:
@@ -810,7 +816,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 static HFONT try_create_font(const char * name, int size)
 {
-	return CreateFontA(-size*96/72, 0, 0, 0, FW_NORMAL,
+	return CreateFontA(-size*99/72, 0, 0, 0, FW_NORMAL,
 	                   FALSE, FALSE, FALSE, DEFAULT_CHARSET,
 	                   OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH|FF_DONTCARE,
 	                   name);
@@ -835,7 +841,7 @@ int ShowMainWindow(HINSTANCE hInstance, int nCmdShow)
 	hwndMain=CreateWindowA(
 				"floatingmunchers", flipsversion,
 				WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_BORDER|WS_MINIMIZEBOX,
-				state.windowleft, state.windowtop, 204, 93, NULL, NULL, GetModuleHandle(NULL), NULL);
+				state.windowleft, state.windowtop, 374, 103, NULL, NULL, GetModuleHandle(NULL), NULL);  // Start Fenster größe
 	
 	HFONT hfont=try_create_font("Segoe UI", 9);
 	if (!hfont) hfont=try_create_font("MS Shell Dlg 2", 8);
@@ -850,10 +856,10 @@ int ShowMainWindow(HINSTANCE hInstance, int nCmdShow)
 			SendMessage(lastbutton, WM_SETFONT, (WPARAM)hfont, 0); \
 			buttonid++; \
 		} while(0)
-	button(6,  6,  90/*77*/,23, "Apply Patch"); SetActiveWindow(lastbutton);
-	button(104,6,  90/*83*/,23, "Create Patch");
-	button(6,  37, 90/*90*/,23, "Apply and Run");
-	button(104,37, 90/*59*/,23, "Settings");
+	button(6,  6,  170/*77*/,23, "Patch anwenden"); SetActiveWindow(lastbutton);
+	button(180,6,  170/*83*/,23, "Patch erstellen");
+	button(6,  37, 170/*90*/,23, "Anwenden und Ausführen");
+	button(180,37, 170/*59*/,23, "Einstellungen");
 	
 	ShowWindow(hwndMain, nCmdShow);
 	
@@ -934,6 +940,7 @@ void GUILoadConfig()
 		state.lastRomType=0;
 		state.openInEmulatorOnAssoc=false;
 		state.enableAutoRomSelector=false;
+		state.skipChecksum=false;
 		state.lastPatchType=ty_bps;
 		state.windowleft=CW_USEDEFAULT;
 		state.windowtop=CW_USEDEFAULT;
